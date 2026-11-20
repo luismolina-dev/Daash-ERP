@@ -1,0 +1,12 @@
+# Salidas generadas por scripts/security-scan.sh: no versionar reportes pesados ni binarios.
+*.log
+*.json
+*.sarif
+*.html
+*.txt
+*.db
+*.sqlite
+*.pdf
+reports/
+zap/
+!.gitignore

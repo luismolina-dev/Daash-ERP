@@ -1,0 +1,15 @@
+node_modules
+dist
+backend
+evidence
+.git
+.gitignore
+*.log
+.env
+.env.*
+!.env.example
+README.md
+docs
+.github
+scripts
+Dockerfile

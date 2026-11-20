@@ -1,0 +1,89 @@
+name: CI - Daash ERP & DTE MVP
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (Java 25 / Maven)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Maven verify (tests JUnit/MockMvc)
+        working-directory: backend
+        run: |
+          chmod +x ./mvnw
+          ./mvnw verify
+
+  frontend:
+    name: Frontend (Node 20 / Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+  security:
+    name: Seguridad (Semgrep, Trivy, ZAP opcional)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Semgrep
+        run: python -m pip install --disable-pip-version-check semgrep
+
+      - name: SAST - Semgrep
+        run: semgrep --config semgrep.yml --metrics off .
+
+      - name: SCA / secretos / misconfig - Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: table
+          exit-code: '0'
+
+      - name: DAST - ZAP baseline (opcional, requiere ZAP_TARGET)
+        if: ${{ vars.ZAP_TARGET != '' }}
+        continue-on-error: true
+        run: |
+          mkdir -p evidence
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/evidence:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "${{ vars.ZAP_TARGET }}" -r zap-baseline.html
